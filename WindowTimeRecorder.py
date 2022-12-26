@@ -6,12 +6,15 @@ from operator import itemgetter
 
 
 class WindowTimeRecorder:
-    __total_time = {}
-    __is_app_alive = True
+    __SAVE_FILE = "totalTime.json"
+
+    def __init__(self):
+        self.__total_time = {}
+        self.__is_app_alive = True
 
     def load_saved_total_time(self):
         self.__total_time = {}
-        file = path.join(path.dirname(__file__), 'totalTime.json')
+        file = path.join(path.dirname(__file__), self.__SAVE_FILE)
 
         if path.exists(file):
             with open(file) as json_file:
@@ -32,7 +35,7 @@ class WindowTimeRecorder:
             self.save_total_time()
 
     def save_total_time(self):
-        file = path.join(path.dirname(__file__), 'totalTime.json')
+        file = path.join(path.dirname(__file__), self.__SAVE_FILE)
         sorted_total_time = dict(sorted(self.__total_time.items(),
                                         key=itemgetter(1),
                                         reverse=True))

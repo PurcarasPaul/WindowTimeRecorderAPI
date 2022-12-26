@@ -11,20 +11,28 @@ from datetime import timedelta
 from json import load, dump
 from os import path
 from sys import exit
+from win32api import GetModuleHandle
+from win32gui import WNDCLASS, RegisterClass, CreateWindowEx
+from win32gui import PumpWaitingMessages
+from win32con import WM_QUERYENDSESSION, WM_ENDSESSION, WM_QUIT, WM_DESTROY
+from win32con import WM_CLOSE, WS_EX_LEFT, CW_USEDEFAULT
+from time import sleep
 
 
 class WindowTimeRecorderGUI:
     __NUMBER_OF_TOP_USED = 50
     __ICON_NAME = "icon.ico"
+    __SETTINGS_FILE = "settings.json"
 
     def __init__(self):
         self.__load_settings()
         self.__time_recorder_thread()
         self.__set_init_design()
         self.__create_main_window()
+        self.__create_event_system()
 
     def __load_settings(self):
-        file = path.join(path.dirname(__file__), 'settings.json')
+        file = path.join(path.dirname(__file__), self.__SETTINGS_FILE)
 
         if path.exists(file):
             with open(file) as settings:
@@ -73,7 +81,7 @@ class WindowTimeRecorderGUI:
                                      'normal'))
 
     def __create_main_window_search_box(self):
-        self.__search_box = Entry()
+        self.__search_box = CTkEntry(self._window)
         self.__search_box.insert(0, "Type to search...")
         self.__search_box.pack(side=BOTTOM, anchor="e", padx=8, pady=8)
         self.__search_box.bind("<Button-1>", self.__click_search_box)
@@ -133,8 +141,8 @@ class WindowTimeRecorderGUI:
                 MenuItem('Settings',
                 self.__change_top_apps_number),
                 MenuItem('Quit', self.__quit_window))
-        icon = Icon("name", image, "Window Time Recorder", menu)
-        icon.run()
+        self.__icon = Icon("name", image, "Window Time Recorder", menu)
+        self.__icon.run()
 
     def __show_window(self):
         self._window.deiconify()
@@ -178,8 +186,8 @@ class WindowTimeRecorderGUI:
         self.__settings.deiconify()
         self.__settings.attributes("-topmost", True)
 
-    def __quit_window(self, icon):
-        icon.stop()
+    def __quit_window(self):
+        self.__icon.stop()
         self.__save_settings()
         self.__window_time_recorder.stop_background_service()
         self.__window_time_recorder.save_total_time()
@@ -187,7 +195,38 @@ class WindowTimeRecorderGUI:
         exit(0)
 
     def __save_settings(self):
-        file = path.join(path.dirname(__file__), 'settings.json')
+        file = path.join(path.dirname(__file__), self.__SETTINGS_FILE)
 
         with open(file, 'w') as settings:
             dump(self.__NUMBER_OF_TOP_USED, settings)
+
+    def __create_event_system(self):
+        hinst = GetModuleHandle(None)
+        wndclass = WNDCLASS()
+        wndclass.hInstance = hinst
+        wndclass.lpszClassName = "testWindowClass"
+        messageMap = {WM_QUERYENDSESSION: self.__wndproc,
+                      WM_ENDSESSION: self.__wndproc,
+                      WM_QUIT: self.__wndproc,
+                      WM_DESTROY: self.__wndproc,
+                      WM_CLOSE: self.__wndproc}
+
+        wndclass.lpfnWndProc = messageMap
+
+        myWindowClass = RegisterClass(wndclass)
+        hwnd = CreateWindowEx(WS_EX_LEFT, myWindowClass, "testMsgWindow", 0, 0,
+                              0, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, hinst,
+                              None)
+
+        event_thread = Thread(
+            target=self.__create_event_thread,
+            daemon=True, name='Event thread')
+        event_thread.start()
+
+    def __wndproc(self, hwnd, msg, wparam, lparam):
+        self.__quit_window()
+
+    def __create_event_thread(self):
+        while True:
+            PumpWaitingMessages()
+            sleep(1)
