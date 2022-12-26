@@ -88,11 +88,13 @@ class WindowTimeRecorderGUI:
         self.__search_box.bind("<Leave>", self.__leave_search_box)
 
     def __click_search_box(self, *args):
-        self.__search_box.delete(0, 'end')
+        if self.__search_box.get() == 'Type to search...':
+            self.__search_box.delete(0, 'end')
 
     def __leave_search_box(self, *args):
         if not self.__search_box.get():
             self.__search_box.insert(0, 'Type to search...')
+        self._window.focus()
 
     def __create_top_apps_window(self):
         self.__init_settings_window()
